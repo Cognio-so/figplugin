@@ -37,7 +37,7 @@ async function renderHeader(props: any): Promise<FrameNode> {
   const right = createAutoLayoutFrame({ name: 'Nav', padding: 0, spacing: 16 })
   right.layoutMode = 'HORIZONTAL'
 
-  if (props?.logoUrl) {
+  if (props && props.logoUrl) {
     const logo = await createImageRectFromUrl(props.logoUrl, 'logo')
     logo.resize(120, 40)
     left.appendChild(logo)
@@ -46,7 +46,7 @@ async function renderHeader(props: any): Promise<FrameNode> {
     left.appendChild(brand)
   }
 
-  const items: string[] = props?.nav ?? ['Home', 'Services', 'Pricing', 'Contact']
+  const items: string[] = (props && props.nav) ? props.nav : ['Home', 'Services', 'Pricing', 'Contact']
   for (const item of items) {
     const link = await createTextNode(item, { family: 'Inter', style: 'Regular', size: 14 })
     right.appendChild(link)
@@ -59,11 +59,11 @@ async function renderHeader(props: any): Promise<FrameNode> {
 
 async function renderHero(props: any): Promise<FrameNode> {
   const frame = createAutoLayoutFrame({ name: 'Hero', padding: 24, spacing: 16 })
-  const title = await createTextNode(props?.title ?? 'Hero Title', { family: 'Inter', style: 'Bold', size: 44, line: 52 })
-  const subtitle = await createTextNode(props?.subtitle ?? 'Subtitle text', { family: 'Inter', style: 'Regular', size: 18, line: 28 })
+  const title = await createTextNode((props && props.title) ? props.title : 'Hero Title', { family: 'Inter', style: 'Bold', size: 44, line: 52 })
+  const subtitle = await createTextNode((props && props.subtitle) ? props.subtitle : 'Subtitle text', { family: 'Inter', style: 'Regular', size: 18, line: 28 })
   frame.appendChild(title)
   frame.appendChild(subtitle)
-  if (props?.imageUrl) {
+  if (props && props.imageUrl) {
     const rect = await createImageRectFromUrl(props.imageUrl, 'hero')
     rect.resize(1200, 420)
     frame.appendChild(rect)
@@ -73,10 +73,10 @@ async function renderHero(props: any): Promise<FrameNode> {
 
 async function renderFeatures(props: any): Promise<FrameNode> {
   const frame = createAutoLayoutFrame({ name: 'Features', spacing: 16 })
-  const items: Array<{ title: string; desc?: string }> = props?.items ?? []
+  const items: Array<{ title: string; desc?: string }> = (props && props.items) ? props.items : []
   for (const it of items) {
     const card = createAutoLayoutFrame({ name: 'Feature', padding: 16, spacing: 6 })
-    const t = await createTextNode(it.title ?? 'Feature', { family: 'Inter', style: 'Bold', size: 18 })
+    const t = await createTextNode(it.title || 'Feature', { family: 'Inter', style: 'Bold', size: 18 })
     card.appendChild(t)
     if (it.desc) {
       const d = await createTextNode(it.desc, { family: 'Inter', style: 'Regular', size: 14, line: 22 })
@@ -89,23 +89,23 @@ async function renderFeatures(props: any): Promise<FrameNode> {
 
 async function renderCTA(props: any): Promise<FrameNode> {
   const frame = createAutoLayoutFrame({ name: 'CTA', spacing: 8, padding: 20 })
-  const title = await createTextNode(props?.title ?? 'Call to Action', { family: 'Inter', style: 'Bold', size: 24 })
+  const title = await createTextNode((props && props.title) ? props.title : 'Call to Action', { family: 'Inter', style: 'Bold', size: 24 })
   frame.appendChild(title)
-  const cta = await createTextNode(props?.cta ?? 'Get Started', { family: 'Inter', style: 'Bold', size: 16 })
+  const cta = await createTextNode((props && props.cta) ? props.cta : 'Get Started', { family: 'Inter', style: 'Bold', size: 16 })
   frame.appendChild(cta)
   return frame
 }
 
 async function renderFooter(props: any): Promise<FrameNode> {
   const frame = createAutoLayoutFrame({ name: 'Footer', spacing: 8, padding: 24 })
-  const text = await createTextNode(props?.text ?? '© Growth99', { family: 'Inter', style: 'Regular', size: 12 })
+  const text = await createTextNode((props && props.text) ? props.text : '© Growth99', { family: 'Inter', style: 'Regular', size: 12 })
   frame.appendChild(text)
   return frame
 }
 
 async function renderTestimonials(props: any): Promise<FrameNode> {
   const frame = createAutoLayoutFrame({ name: 'Testimonials', spacing: 12, padding: 20 })
-  const items: Array<{ quote: string; author?: string }> = props?.items ?? [
+  const items: Array<{ quote: string; author?: string }> = (props && props.items) ? props.items : [
     { quote: 'Amazing service!', author: 'Client' },
   ]
   for (const it of items) {

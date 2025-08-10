@@ -7,11 +7,13 @@
   "editorType": ["figma"],
   "networkAccess": {
     "allowedDomains": [
+      "http://localhost:8000",
       "https://api.growth99.dev",
-      "wss://api.growth99.dev",
+      "wss://api.growth99.dev", 
       "https://api.firecrawl.dev",
       "https://replicate.com",
-      "https://*.replicate.delivery"
+      "https://*.replicate.delivery",
+      "https://images.unsplash.com"
     ],
     "reasoning": "Plugin UI calls our backend; backend fans out to Firecrawl & Replicate."
   }

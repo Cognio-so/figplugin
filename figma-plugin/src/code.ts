@@ -9,6 +9,11 @@ import inlinedUI from './_inlined-ui'
 
 figma.showUI(inlinedUI, { width: 380, height: 640 })
 
+// Handle plugin close
+figma.on('close', () => {
+  console.log('Growth99 plugin closing')
+})
+
 onUIMessage(async (msg: UIToCoreMessage) => {
   if (msg.type === 'GenerateFirstPage') {
     try {
@@ -236,8 +241,7 @@ async function applyGeneratedImages(images: any[]) {
         const role = node.getPluginData('role')
         if (role === imageSpec.role && imageSpec.url) {
           try {
-            const imageBytes = await fetch(imageSpec.url).then(r => r.arrayBuffer())
-            const image = figma.createImage(new Uint8Array(imageBytes))
+            const image = await figma.createImageAsync(imageSpec.url)
             
             if (node.type === 'RECTANGLE') {
               node.fills = [{

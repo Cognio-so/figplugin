@@ -8,7 +8,7 @@ const CLIENT_KEY = 'g99:prefs'
 
 export async function loadUserPrefs(): Promise<UserPrefs> {
   const data = await figma.clientStorage.getAsync(CLIENT_KEY)
-  return (data as UserPrefs) ?? {}
+  return (data as UserPrefs) || {}
 }
 
 export async function saveUserPrefs(prefs: UserPrefs): Promise<void> {

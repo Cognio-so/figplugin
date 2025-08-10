@@ -14,10 +14,10 @@ await mkdir(outdir, { recursive: true })
 
 // 1) Build UI first
 await build({
-  entryPoints: [resolve(__dirname, 'src/ui.tsx')],
+  entryPoints: [resolve(__dirname, 'src/ui.js')],
   bundle: true,
   outfile: resolve(outdir, 'ui.js'),
-  target: 'es2020',
+  target: 'es2018',
   platform: 'browser',
   format: 'iife',
   define: { 'process.env.NODE_ENV': '"production"' },
@@ -48,7 +48,7 @@ await build({
   entryPoints: [resolve(__dirname, 'src/code.ts')],
   bundle: true,
   outfile: resolve(outdir, 'code.js'),
-  target: 'es2020',
+  target: 'es2018', // Changed to es2018 for maximum compatibility
   platform: 'browser',
   format: 'iife',
   define: { 'process.env.NODE_ENV': '"production"' },

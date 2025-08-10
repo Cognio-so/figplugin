@@ -10,11 +10,19 @@ export function onUIMessage(handler: (msg: UIToCoreMessage) => Promise<void> | v
       const maybePromise = handler(msg)
       if (maybePromise && typeof (maybePromise as any).then === 'function') {
         ;(maybePromise as Promise<void>).catch((err) => {
-          figma.notify('Error: ' + (err?.message ?? String(err)))
+          console.error('Plugin error:', err)
+          figma.notify('Plugin error: ' + (err && err.message ? err.message : String(err)), { 
+            error: true,
+            timeout: 5000 
+          })
         })
       }
     } catch (err: any) {
-      figma.notify('Error: ' + (err?.message ?? String(err)))
+      console.error('Plugin error:', err)
+      figma.notify('Plugin error: ' + (err && err.message ? err.message : String(err)), { 
+        error: true,
+        timeout: 5000 
+      })
     }
   }
 }

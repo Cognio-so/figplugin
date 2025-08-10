@@ -7,12 +7,12 @@ export interface FrameOptions {
 
 export function createAutoLayoutFrame(options: FrameOptions = {}): FrameNode {
   const frame = figma.createFrame()
-  frame.name = options.name ?? 'Frame'
+  frame.name = options.name || 'Frame'
   frame.layoutMode = 'VERTICAL'
   frame.primaryAxisSizingMode = 'AUTO'
   frame.counterAxisSizingMode = 'AUTO'
-  frame.itemSpacing = options.spacing ?? 24
-  const pad = options.padding ?? 24
+  frame.itemSpacing = options.spacing || 24
+  const pad = options.padding || 24
   frame.paddingTop = pad
   frame.paddingRight = pad
   frame.paddingBottom = pad
