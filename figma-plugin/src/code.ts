@@ -1,0 +1,275 @@
+import { onUIMessage, postToUI } from './bridge'
+import type { PageSpec, UIToCoreMessage } from './types'
+import { createAutoLayoutFrame } from './renderers/layout'
+import { renderSection } from './renderers/components'
+// Inline UI HTML for figma.showUI
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import inlinedUI from './_inlined-ui'
+
+figma.showUI(inlinedUI, { width: 380, height: 640 })
+
+onUIMessage(async (msg: UIToCoreMessage) => {
+  if (msg.type === 'GenerateFirstPage') {
+    try {
+      // Test backend connectivity first
+      postToUI({ type: 'RenderProgress', payload: { step: 'connecting-backend', percent: 10 } })
+      
+      // Try to call the backend API
+      const backendUrl = 'http://localhost:8000'
+      
+      // Test complete page generation workflow
+      const response = await fetch(`${backendUrl}/v1/generate/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_input: "Create a professional medical spa homepage",
+          reference_urls: [],
+          page_type: "Home",
+          use_ai_images: false,
+          model_name: "gpt-5"
+        })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.success && result.final_page_spec) {
+          postToUI({ type: 'RenderProgress', payload: { step: 'rendering-page', percent: 80 } })
+          
+          // Render the AI-generated page
+          await renderGeneratedPage(result.final_page_spec)
+          postToUI({ type: 'Rendered', payload: { pageName: result.final_page_spec.pageName } })
+          
+        } else {
+          throw new Error(result.error || 'Page generation failed')
+        }
+      } else {
+        throw new Error(`Backend error: ${response.status}`)
+      }
+      
+    } catch (error) {
+      console.error('Backend connection failed:', error)
+      postToUI({ type: 'Error', payload: { 
+        code: 'BACKEND_ERROR', 
+        message: `Backend unavailable: ${error.message}`, 
+        suggestion: 'Using fallback local generation'
+      }})
+      
+      // Fallback to local generation
+      const plan = await getSamplePlan()
+      await renderPage(plan)
+      postToUI({ type: 'Rendered', payload: { pageName: plan.pageName } })
+    }
+    return
+  }
+})
+
+async function renderPage(spec: PageSpec) {
+  figma.currentPage = figma.createPage()
+  figma.currentPage.name = spec.pageName
+  const root = createAutoLayoutFrame({ name: 'Container', padding: 24, spacing: 24 })
+  figma.currentPage.appendChild(root)
+
+  for (const section of spec.sections) {
+    postToUI({ type: 'RenderProgress', payload: { step: `creating-${section.type.toLowerCase()}`, percent: 10 } })
+    const node = await renderSection(section)
+    root.appendChild(node)
+  }
+}
+
+async function renderGeneratedPage(generatedSpec: any) {
+  // Create new page
+  figma.currentPage = figma.createPage()
+  figma.currentPage.name = generatedSpec.pageName || 'AI Generated Page'
+  
+  if (generatedSpec.figmaNodes && generatedSpec.figmaNodes.length > 0) {
+    // Render from detailed Figma node specifications
+    await renderFromFigmaNodes(generatedSpec.figmaNodes)
+  } else if (generatedSpec.sections) {
+    // Fallback to section-based rendering
+    const pageSpec: PageSpec = {
+      pageName: generatedSpec.pageName,
+      sections: generatedSpec.sections,
+      assets: generatedSpec.assets || {}
+    }
+    await renderPage(pageSpec)
+  }
+  
+  // Apply any generated images
+  if (generatedSpec.images && generatedSpec.images.length > 0) {
+    await applyGeneratedImages(generatedSpec.images)
+  }
+}
+
+async function renderFromFigmaNodes(figmaNodes: any[]) {
+  for (const nodeSpec of figmaNodes) {
+    try {
+      const node = await createFigmaNode(nodeSpec)
+      if (node) {
+        figma.currentPage.appendChild(node)
+      }
+    } catch (error) {
+      console.error('Failed to render node:', nodeSpec.name, error)
+    }
+  }
+}
+
+async function createFigmaNode(nodeSpec: any): Promise<SceneNode | null> {
+  try {
+    switch (nodeSpec.type) {
+      case 'FRAME':
+        const frame = figma.createFrame()
+        frame.name = nodeSpec.name
+        
+        // Apply frame properties
+        if (nodeSpec.properties) {
+          applyFrameProperties(frame, nodeSpec.properties)
+        }
+        
+        // Add children recursively
+        if (nodeSpec.children && nodeSpec.children.length > 0) {
+          for (const childSpec of nodeSpec.children) {
+            const child = await createFigmaNode(childSpec)
+            if (child) {
+              frame.appendChild(child)
+            }
+          }
+        }
+        
+        return frame
+        
+      case 'TEXT':
+        const text = figma.createText()
+        text.name = nodeSpec.name
+        
+        if (nodeSpec.properties) {
+          await applyTextProperties(text, nodeSpec.properties)
+        }
+        
+        return text
+        
+      case 'RECTANGLE':
+        const rect = figma.createRectangle()
+        rect.name = nodeSpec.name
+        
+        if (nodeSpec.properties) {
+          applyRectangleProperties(rect, nodeSpec.properties)
+        }
+        
+        return rect
+        
+      default:
+        console.warn('Unknown node type:', nodeSpec.type)
+        return null
+    }
+  } catch (error) {
+    console.error('Error creating node:', error)
+    return null
+  }
+}
+
+function applyFrameProperties(frame: FrameNode, props: any) {
+  if (props.layoutMode) frame.layoutMode = props.layoutMode
+  if (props.primaryAxisSizingMode) frame.primaryAxisSizingMode = props.primaryAxisSizingMode
+  if (props.counterAxisSizingMode) frame.counterAxisSizingMode = props.counterAxisSizingMode
+  if (typeof props.itemSpacing === 'number') frame.itemSpacing = props.itemSpacing
+  if (typeof props.paddingTop === 'number') frame.paddingTop = props.paddingTop
+  if (typeof props.paddingRight === 'number') frame.paddingRight = props.paddingRight
+  if (typeof props.paddingBottom === 'number') frame.paddingBottom = props.paddingBottom
+  if (typeof props.paddingLeft === 'number') frame.paddingLeft = props.paddingLeft
+  if (typeof props.width === 'number') frame.resize(props.width, frame.height)
+  if (props.fills) frame.fills = convertFills(props.fills)
+  if (typeof props.cornerRadius === 'number') frame.cornerRadius = props.cornerRadius
+}
+
+async function applyTextProperties(text: TextNode, props: any) {
+  if (props.characters) {
+    // Load font first
+    if (props.fontName) {
+      await figma.loadFontAsync(props.fontName)
+      text.fontName = props.fontName
+    }
+    text.characters = props.characters
+  }
+  if (typeof props.fontSize === 'number') text.fontSize = props.fontSize
+  if (props.fills) text.fills = convertFills(props.fills)
+  if (props.textAlignHorizontal) text.textAlignHorizontal = props.textAlignHorizontal
+  if (typeof props.width === 'number') text.resize(props.width, text.height)
+}
+
+function applyRectangleProperties(rect: RectangleNode, props: any) {
+  if (typeof props.width === 'number' && typeof props.height === 'number') {
+    rect.resize(props.width, props.height)
+  }
+  if (props.fills) rect.fills = convertFills(props.fills)
+  if (typeof props.cornerRadius === 'number') rect.cornerRadius = props.cornerRadius
+}
+
+function convertFills(fillSpecs: any[]): Paint[] {
+  return fillSpecs.map(fillSpec => {
+    if (fillSpec.type === 'SOLID') {
+      return {
+        type: 'SOLID',
+        color: fillSpec.color
+      }
+    }
+    // Add other fill types as needed
+    return {
+      type: 'SOLID',
+      color: { r: 0.5, g: 0.5, b: 0.5 }
+    }
+  })
+}
+
+async function applyGeneratedImages(images: any[]) {
+  for (const imageSpec of images) {
+    try {
+      // Find nodes with matching role
+      const nodes = figma.currentPage.findAllWithCriteria({
+        types: ['RECTANGLE']
+      })
+      
+      for (const node of nodes) {
+        const role = node.getPluginData('role')
+        if (role === imageSpec.role && imageSpec.url) {
+          try {
+            const imageBytes = await fetch(imageSpec.url).then(r => r.arrayBuffer())
+            const image = figma.createImage(new Uint8Array(imageBytes))
+            
+            if (node.type === 'RECTANGLE') {
+              node.fills = [{
+                type: 'IMAGE',
+                scaleMode: 'FILL',
+                imageHash: image.hash
+              }]
+            }
+          } catch (error) {
+            console.error('Failed to apply image:', imageSpec.url, error)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to process image:', imageSpec, error)
+    }
+  }
+}
+
+async function getSamplePlan(): Promise<PageSpec> {
+  return {
+    pageName: 'Home',
+    sections: [
+      { type: 'Header', props: { nav: ['Home', 'Services', 'Pricing', 'Contact'] } },
+      { type: 'Hero', props: { title: 'Radiant Skin, Confident You', subtitle: 'Advanced med‑spa treatments' } },
+      { type: 'Features', props: { items: [ { title: 'FDA‑approved', desc: 'Safe & effective' }, { title: 'Expert Team', desc: 'Board‑certified clinicians' } ] } },
+      { type: 'Testimonials', props: { items: [ { quote: 'Best experience ever', author: 'A Happy Client' } ] } },
+      { type: 'CTA', props: { title: 'See Our Packages', cta: 'View Pricing' } },
+      { type: 'Footer', props: {} },
+    ],
+    assets: {},
+  }
+}
+
+

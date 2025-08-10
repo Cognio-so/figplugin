@@ -1,0 +1,20 @@
+{
+  "name": "Growth99 – AI Page Generator",
+  "id": "com.cognio.growth99.ai-pages",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://api.growth99.dev",
+      "wss://api.growth99.dev",
+      "https://api.firecrawl.dev",
+      "https://replicate.com",
+      "https://*.replicate.delivery"
+    ],
+    "reasoning": "Plugin UI calls our backend; backend fans out to Firecrawl & Replicate."
+  }
+}
+
+
