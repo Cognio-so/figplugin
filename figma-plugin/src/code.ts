@@ -2,6 +2,7 @@ import { onUIMessage, postToUI } from './bridge'
 import type { PageSpec, UIToCoreMessage } from './types'
 import { createAutoLayoutFrame } from './renderers/layout'
 import { renderSection } from './renderers/components'
+import { AIRenderer, AIGeneratedPage } from './renderers/ai-renderer'
 // Inline UI HTML for figma.showUI
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -23,6 +24,15 @@ onUIMessage(async (msg: UIToCoreMessage) => {
       // Try to call the backend API
       const backendUrl = 'http://localhost:8000'
       
+      // Extract data from message payload
+      const { brief, model, useAiImages, referenceUrls } = msg.payload || {}
+      const userInput = brief || "Create a professional medical spa homepage with modern, luxurious design"
+      const urls = referenceUrls || []
+      const modelName = model || "gpt-5"
+      const aiImages = useAiImages || false
+      
+      postToUI({ type: 'RenderProgress', payload: { step: 'analyzing-requirements', percent: 5 } })
+      
       // Test complete page generation workflow
       const response = await fetch(`${backendUrl}/v1/generate/complete`, {
         method: 'POST',
@@ -30,11 +40,11 @@ onUIMessage(async (msg: UIToCoreMessage) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_input: "Create a professional medical spa homepage",
-          reference_urls: [],
+          user_input: userInput,
+          reference_urls: urls,
           page_type: "Home",
-          use_ai_images: false,
-          model_name: "gpt-5"
+          use_ai_images: aiImages,
+          model_name: modelName
         })
       })
       
@@ -42,10 +52,19 @@ onUIMessage(async (msg: UIToCoreMessage) => {
         const result = await response.json()
         
         if (result.success && result.final_page_spec) {
-          postToUI({ type: 'RenderProgress', payload: { step: 'rendering-page', percent: 80 } })
+          postToUI({ type: 'RenderProgress', payload: { step: 'rendering-ai-components', percent: 80 } })
           
-          // Render the AI-generated page
-          await renderGeneratedPage(result.final_page_spec)
+          // Check if we have AI-generated components
+          if (result.final_page_spec.figmaComponents && result.final_page_spec.figmaComponents.length > 0) {
+            // Render using AI renderer
+            console.log('Using AI renderer for dynamic components')
+            await AIRenderer.renderAIGeneratedPage(result.final_page_spec as AIGeneratedPage)
+          } else {
+            // Fallback to traditional rendering
+            console.log('Using traditional renderer (fallback)')
+            await renderGeneratedPage(result.final_page_spec)
+          }
+          
           postToUI({ type: 'Rendered', payload: { pageName: result.final_page_spec.pageName } })
           
         } else {
@@ -63,10 +82,10 @@ onUIMessage(async (msg: UIToCoreMessage) => {
         suggestion: 'Using fallback local generation'
       }})
       
-      // Fallback to local generation
-      const plan = await getSamplePlan()
-      await renderPage(plan)
-      postToUI({ type: 'Rendered', payload: { pageName: plan.pageName } })
+      // Fallback to AI renderer demonstration
+      console.log('Using AI renderer fallback to demonstrate new system')
+      await AIRenderer.renderFallbackPage('AI-Powered Design Demo')
+      postToUI({ type: 'Rendered', payload: { pageName: 'AI-Powered Design Demo' } })
     }
     return
   }
@@ -263,16 +282,45 @@ async function applyGeneratedImages(images: any[]) {
 
 async function getSamplePlan(): Promise<PageSpec> {
   return {
-    pageName: 'Home',
+    pageName: 'Premium Medical Spa',
     sections: [
-      { type: 'Header', props: { nav: ['Home', 'Services', 'Pricing', 'Contact'] } },
-      { type: 'Hero', props: { title: 'Radiant Skin, Confident You', subtitle: 'Advanced med‑spa treatments' } },
-      { type: 'Features', props: { items: [ { title: 'FDA‑approved', desc: 'Safe & effective' }, { title: 'Expert Team', desc: 'Board‑certified clinicians' } ] } },
-      { type: 'Testimonials', props: { items: [ { quote: 'Best experience ever', author: 'A Happy Client' } ] } },
-      { type: 'CTA', props: { title: 'See Our Packages', cta: 'View Pricing' } },
-      { type: 'Footer', props: {} },
+      { type: 'Header', props: { nav: ['Home', 'Services', 'About', 'Contact'], logo: true, cta: 'Book Now' } },
+      { type: 'Hero', props: { 
+        title: 'Transform Your Skin, Elevate Your Confidence', 
+        subtitle: 'Advanced Medical Spa Treatments',
+        cta: 'Schedule Consultation',
+        imageSlot: 'hero'
+      } },
+      { type: 'Features', props: { 
+        title: 'Why Choose Our Premium Care',
+        items: [ 
+          { title: 'FDA-Approved Treatments', desc: 'Safe, effective procedures with proven results' }, 
+          { title: 'Expert Medical Team', desc: 'Board-certified professionals with years of experience' },
+          { title: 'Personalized Approach', desc: 'Customized treatment plans for your unique needs' }
+        ] 
+      } },
+      { type: 'Testimonials', props: { 
+        title: 'Client Success Stories',
+        items: [ 
+          { quote: 'Life-changing results! The team made me feel comfortable throughout the entire process.', author: 'Sarah M.' },
+          { quote: 'Professional, caring, and absolutely amazing results. Highly recommend!', author: 'Jennifer R.' }
+        ] 
+      } },
+      { type: 'CTA', props: { 
+        title: 'Ready to Begin Your Transformation?', 
+        subtitle: 'Book your complimentary consultation today',
+        cta: 'Schedule Your Consultation' 
+      } },
+      { type: 'Footer', props: { 
+        address: '123 Beauty Blvd, Medical Plaza',
+        phone: '(555) 123-4567',
+        email: 'hello@premiummedspa.com'
+      } },
     ],
-    assets: {},
+    assets: {
+      hero: 'hero-image',
+      logo: 'brand-logo'
+    },
   }
 }
 

@@ -8,7 +8,7 @@
     "watch": "node build.mjs --watch",
     "clean": "rm -rf dist",
     "dev": "npm run build && npm run watch",
-    "backend": "cd backend && python main.py",
+    "backend": "PYTHONPATH=. python -m backend.main",
     "backend:install": "cd backend && pip install -r requirements.txt",
     "start": "npm run backend"
   },

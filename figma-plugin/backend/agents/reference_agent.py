@@ -103,9 +103,8 @@ class ReferenceAgent:
             combined_content = f"Target business context: {brief_context}\n\n{combined_content}"
         
         # Analyze with GPT-5
-        response = await self.llm.ainvoke(
-            self.analysis_prompt.format(website_content=combined_content)
-        )
+        formatted_prompt = self.analysis_prompt.format_messages(website_content=combined_content)
+        response = await self.llm.ainvoke(formatted_prompt)
         
         # Parse into design system
         design_system_data = self._parse_design_system(response.content)
@@ -148,7 +147,8 @@ class ReferenceAgent:
         ])
         
         try:
-            extraction_response = self.llm.invoke(extraction_prompt)
+            formatted_prompt = extraction_prompt.format_messages()
+            extraction_response = self.llm.invoke(formatted_prompt)
             import json
             return json.loads(extraction_response.content)
         except Exception as e:
@@ -159,12 +159,24 @@ class ReferenceAgent:
         """Default professional healthcare design system"""
         return DesignSystem(
             colors={
-                "primary": "#2563EB",      # Professional blue
-                "secondary": "#059669",     # Medical green
-                "text": "#1F2937",         # Dark gray
-                "textMuted": "#6B7280",    # Medium gray
-                "background": "#FFFFFF",    # White
-                "accent": "#DC2626"        # Medical red for CTAs
+                "primary": "#2563EB",           # Professional blue
+                "primaryDark": "#1D4ED8",       # Darker blue for gradients
+                "primaryLight": "#3B82F6",      # Lighter blue for accents
+                "secondary": "#059669",          # Medical green
+                "secondaryDark": "#047857",     # Darker green
+                "text": "#1F2937",              # Dark gray
+                "textMuted": "#6B7280",         # Medium gray
+                "textLight": "#9CA3AF",         # Light gray
+                "background": "#FFFFFF",         # White
+                "backgroundSecondary": "#F9FAFB", # Very light gray
+                "backgroundLight": "#F8FAFC",    # Ultra light gray
+                "accent": "#DC2626",             # Medical red for CTAs
+                "accentLight": "#EF4444",        # Lighter red
+                "border": "#E5E7EB",             # Border color
+                "success": "#10B981",            # Success green
+                "warning": "#F59E0B",            # Warning amber
+                "gradient1": "#667eea",          # Gradient start
+                "gradient2": "#764ba2"           # Gradient end
             },
             typography={
                 "display": {"family": "Inter", "size": 44, "weight": "700", "lineHeight": 1.2},
@@ -178,11 +190,42 @@ class ReferenceAgent:
             radius={"sm": 4, "md": 8, "lg": 12, "xl": 16},
             grid={"container": 1200, "columns": 12, "gutter": 24},
             components={
-                "Button": {"radius": 8, "padX": 24, "padY": 12, "weight": "600"},
-                "Card": {"radius": 12, "shadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": 24},
-                "Nav": {"height": 80, "padding": 16},
-                "Hero": {"minHeight": 500, "padding": 64},
-                "Section": {"padding": 80}
+                "Button": {
+                    "radius": 12, 
+                    "padX": 32, 
+                    "padY": 16, 
+                    "weight": "700",
+                    "shadow": "0 4px 16px rgba(37, 99, 235, 0.4)",
+                    "hoverScale": 1.02
+                },
+                "Card": {
+                    "radius": 16, 
+                    "shadow": "0 8px 32px rgba(0,0,0,0.12)", 
+                    "padding": 32,
+                    "borderWidth": 1,
+                    "hoverShadow": "0 12px 48px rgba(0,0,0,0.15)"
+                },
+                "Nav": {
+                    "height": 88, 
+                    "padding": 24,
+                    "shadow": "0 2px 16px rgba(0,0,0,0.08)",
+                    "backdropBlur": 12
+                },
+                "Hero": {
+                    "minHeight": 600, 
+                    "padding": 80,
+                    "gradient": True,
+                    "overlay": "0.1"
+                },
+                "Section": {
+                    "padding": 96,
+                    "spacing": 48
+                },
+                "Icon": {
+                    "size": 24,
+                    "stroke": 2,
+                    "color": "primary"
+                }
             },
             confidence=0.9
         )

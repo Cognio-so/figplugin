@@ -129,7 +129,7 @@ async def analyze_reference(request: ReferenceAnalyzeRequest):
     """Analyze reference URLs and extract design system using LangGraph agents"""
     
     try:
-        from .agents.reference_agent import ReferenceAgent
+        from backend.agents.reference_agent import ReferenceAgent
         
         llm_client = get_llm_client()
         reference_agent = ReferenceAgent(llm_client)
@@ -145,7 +145,7 @@ async def analyze_reference(request: ReferenceAnalyzeRequest):
     except Exception as e:
         print(f"Reference analysis failed: {e}")
         # Fallback to default healthcare design system
-        from .agents.reference_agent import ReferenceAgent
+        from backend.agents.reference_agent import ReferenceAgent
         llm_client = get_llm_client()
         agent = ReferenceAgent(llm_client)
         return agent._get_default_healthcare_design_system()
@@ -155,8 +155,8 @@ async def plan_page(request: PagePlanRequest):
     """Generate a page specification using LangGraph planner agent"""
     
     try:
-        from .agents.planner_agent import PlannerAgent
-        from .agents.requirements_agent import Brief
+        from backend.agents.planner_agent import PlannerAgent
+        from backend.agents.requirements_agent import Brief
         
         llm_client = get_llm_client()
         planner_agent = PlannerAgent(llm_client)
@@ -207,7 +207,7 @@ async def generate_images(request: ImageGenerateRequest):
     """Generate AI images using Replicate integration"""
     
     try:
-        from .agents.image_agent import ImageAgent
+        from backend.agents.image_agent import ImageAgent
         
         llm_client = get_llm_client()
         image_agent = ImageAgent(llm_client)
@@ -239,7 +239,7 @@ async def generate_complete_page(request: Dict[str, Any]):
     """Complete page generation using LangGraph workflow"""
     
     try:
-        from .workflows.page_generation_workflow import create_workflow
+        from backend.workflows.page_generation_workflow import create_workflow
         
         # Extract request parameters
         chat_history = request.get("chat_history", [])

@@ -27,7 +27,20 @@ generateBtn.addEventListener('click', () => {
   const brief = briefEl.value
   const model = modelEl.value
   const useAiImages = aiImagesEl.checked
-  parent.postMessage({ pluginMessage: { type: 'GenerateFirstPage', payload: { brief, model, useAiImages } } }, '*')
+  const referenceUrls = getAllReferenceUrls()
+  
+  if (!brief.trim()) {
+    append('Error: Please enter a project brief')
+    return
+  }
+  
+  append(`Starting generation with ${referenceUrls.length} reference URLs...`)
+  parent.postMessage({ 
+    pluginMessage: { 
+      type: 'GenerateFirstPage', 
+      payload: { brief, model, useAiImages, referenceUrls } 
+    } 
+  }, '*')
   append('Requested: GenerateFirstPage')
 })
 

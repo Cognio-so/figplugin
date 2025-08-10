@@ -151,5 +151,3 @@ create table sessions (
 ## License
 
 Proprietary - Growth99/Cognio Labs
-
-

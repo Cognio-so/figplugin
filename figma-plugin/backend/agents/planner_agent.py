@@ -7,8 +7,8 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from .requirements_agent import Brief
-from .reference_agent import DesignSystem
+from backend.agents.requirements_agent import Brief
+from backend.agents.reference_agent import DesignSystem
 
 class Section(BaseModel):
     type: str
@@ -28,30 +28,58 @@ class PlannerAgent:
 
             Create detailed page specifications that will be rendered in Figma.
             
-            HEALTHCARE LAYOUT PRINCIPLES:
-            1. Trust & Credibility First - Professional header, certifications visible
-            2. Clear Value Proposition - Hero section with primary service/benefit
-            3. Social Proof - Testimonials, before/after, credentials
-            4. Service Clarity - Clear service descriptions with benefits
-            5. Easy Action - Prominent, clear call-to-action buttons
+            DESIGN EXCELLENCE PRINCIPLES:
+            1. Visual Hierarchy - Bold headlines, clear typography scales, strategic use of color
+            2. Rich Visual Elements - Professional imagery, gradients, shadows, modern cards
+            3. Sophisticated Layout - Asymmetrical layouts, whitespace management, depth
+            4. Brand Consistency - Cohesive color palette, consistent spacing, polished components
+            5. Modern Aesthetics - Contemporary design trends, smooth animations, micro-interactions
+            6. Trust & Credibility - Professional polish, social proof, certifications
+            7. Conversion Optimization - Strategic CTAs, visual flow, user journey
             
-            AVAILABLE SECTION TYPES:
-            - Header: Logo, navigation, contact info
-            - Hero: Main headline, subtitle, CTA, hero image/video
-            - Services: Service cards with descriptions
-            - About: Team, credentials, story
-            - Features: Key differentiators, benefits
-            - Testimonials: Client reviews, ratings
-            - BeforeAfter: Visual proof (for med-spas)
-            - CTA: Strong call-to-action section
-            - FAQ: Common questions
-            - Contact: Location, hours, booking
-            - Footer: Links, contact, legal
+            VISUAL ENHANCEMENT GUIDELINES:
+            - Use gradient backgrounds and overlays for depth
+            - Apply subtle shadows and elevation for components
+            - Create visual interest with asymmetrical layouts
+            - Employ rich color schemes with proper contrast
+            - Include decorative elements and icons
+            - Design with professional photography placeholders
+            - Apply consistent rounded corners and modern styling
             
-            Consider the business type, target audience, and brand tone.
-            Plan sections that build trust and drive conversions.
+            ENHANCED SECTION TYPES WITH RICH VISUALS:
+            - Header: Premium navigation with gradient background, logo, contact info, CTA button
+            - Hero: Split-screen with large imagery, gradient overlays, bold typography, multiple CTAs
+            - Services: Card grid with icons, hover effects, rich descriptions, pricing hints
+            - About: Team showcase with professional photos, credentials, story with visual elements
+            - Features: Icon-driven benefits with illustrations, statistics, visual proof points
+            - Testimonials: Photo testimonials, star ratings, video testimonials, review cards
+            - BeforeAfter: Interactive image comparisons, transformation galleries
+            - CTA: Compelling action sections with urgency, benefits, contact methods
+            - FAQ: Expandable cards with search, visual icons
+            - Contact: Interactive maps, contact forms, office photos, team availability
+            - Footer: Rich footer with multiple columns, social proof, certifications
+            - Statistics: Number counters, progress bars, achievement displays
+            - Gallery: Image showcases, before/after galleries, portfolio displays
             
-            Return a complete page specification with detailed props for each section."""),
+            DESIGN QUALITY REQUIREMENTS:
+            1. Create visually stunning layouts that rival premium website designs
+            2. Include rich visual elements: gradients, shadows, professional imagery
+            3. Plan sophisticated component interactions and visual hierarchy
+            4. Design with mobile-first responsive principles
+            5. Include micro-animations and hover effects specifications
+            6. Plan comprehensive color schemes with semantic meaning
+            7. Specify high-quality typography with proper scales and weights
+            8. Include decorative elements and visual interest points
+            
+            REFERENCE URL INTEGRATION:
+            When reference URLs are provided, extract and adapt their:
+            - Color palettes and brand aesthetics
+            - Layout patterns and visual hierarchy  
+            - Component styles and interactions
+            - Typography choices and spacing
+            - Image treatment and visual elements
+            
+            Return a complete page specification with detailed props for each section that will create a visually impressive, professional design."""),
             ("human", """Create a page layout for:
 
 Business Brief:
@@ -80,14 +108,13 @@ Special Requirements: {requirements}""")
         requirements_text = special_requirements or "None"
         
         # Generate page specification
-        response = await self.llm.ainvoke(
-            self.planning_prompt.format(
-                brief=brief_text,
-                design_system=design_text,
-                page_type=page_type,
-                requirements=requirements_text
-            )
+        formatted_prompt = self.planning_prompt.format_messages(
+            brief=brief_text,
+            design_system=design_text,
+            page_type=page_type,
+            requirements=requirements_text
         )
+        response = await self.llm.ainvoke(formatted_prompt)
         
         # Parse response into structured PageSpec
         page_spec_data = self._parse_page_spec(response.content, brief, page_type)
@@ -160,7 +187,8 @@ Spacing Scale: {design_system.spacingScale[:5]}
         ])
         
         try:
-            extraction_response = self.llm.invoke(extraction_prompt)
+            formatted_prompt = extraction_prompt.format_messages()
+            extraction_response = self.llm.invoke(formatted_prompt)
             import json
             return json.loads(extraction_response.content)
         except Exception as e:

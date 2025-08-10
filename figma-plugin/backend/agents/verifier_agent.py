@@ -6,8 +6,8 @@ from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from .composer_agent import ComposedPageSpec, FigmaNodeSpec
-from .reference_agent import DesignSystem
+from backend.agents.composer_agent import GeneratedPageComponents, FigmaComponentSpec
+from backend.agents.reference_agent import DesignSystem
 
 class ValidationIssue(BaseModel):
     severity: str  # "error", "warning", "info"
@@ -63,7 +63,7 @@ Check for issues and provide recommendations.""")
 
     async def verify_page(
         self, 
-        composed_spec: ComposedPageSpec, 
+        composed_spec: GeneratedPageComponents, 
         design_system: DesignSystem,
         target_audience: str = "healthcare patients"
     ) -> VerificationResult:
@@ -104,7 +104,7 @@ Check for issues and provide recommendations.""")
             recommendations=recommendations
         )
     
-    def _validate_structure(self, composed_spec: ComposedPageSpec) -> List[ValidationIssue]:
+    def _validate_structure(self, composed_spec: GeneratedPageComponents) -> List[ValidationIssue]:
         """Validate structural completeness"""
         
         issues = []
@@ -146,7 +146,7 @@ Check for issues and provide recommendations.""")
         
         return issues
     
-    def _validate_accessibility(self, composed_spec: ComposedPageSpec, design_system: DesignSystem) -> List[ValidationIssue]:
+    def _validate_accessibility(self, composed_spec: GeneratedPageComponents, design_system: DesignSystem) -> List[ValidationIssue]:
         """Validate accessibility compliance"""
         
         issues = []
@@ -187,7 +187,7 @@ Check for issues and provide recommendations.""")
         
         return issues
     
-    async def _validate_healthcare_compliance(self, composed_spec: ComposedPageSpec) -> List[ValidationIssue]:
+    async def _validate_healthcare_compliance(self, composed_spec: GeneratedPageComponents) -> List[ValidationIssue]:
         """Validate healthcare-specific compliance"""
         
         issues = []
@@ -214,7 +214,8 @@ Check for issues and provide recommendations.""")
                 ("human", f"Website text content to check:\n{combined_text}")
             ])
             
-            response = await self.llm.ainvoke(compliance_prompt)
+            formatted_prompt = compliance_prompt.format_messages()
+            response = await self.llm.ainvoke(formatted_prompt)
             
             # Parse compliance issues (simplified for MVP)
             if "claim" in combined_text.lower() or "guarantee" in combined_text.lower():
@@ -243,7 +244,7 @@ Check for issues and provide recommendations.""")
         
         return issues
     
-    def _validate_performance(self, composed_spec: ComposedPageSpec) -> List[ValidationIssue]:
+    def _validate_performance(self, composed_spec: GeneratedPageComponents) -> List[ValidationIssue]:
         """Validate performance characteristics"""
         
         issues = []
@@ -276,7 +277,7 @@ Check for issues and provide recommendations.""")
         
         return issues
     
-    def _calculate_complexity(self, composed_spec: ComposedPageSpec) -> PageComplexity:
+    def _calculate_complexity(self, composed_spec: GeneratedPageComponents) -> PageComplexity:
         """Calculate page complexity metrics"""
         
         total_nodes = composed_spec.totalNodes
@@ -312,7 +313,7 @@ Check for issues and provide recommendations.""")
     
     async def _generate_recommendations(
         self, 
-        composed_spec: ComposedPageSpec, 
+        composed_spec: GeneratedPageComponents, 
         issues: List[ValidationIssue]
     ) -> List[str]:
         """Generate improvement recommendations"""
@@ -343,7 +344,7 @@ Check for issues and provide recommendations.""")
         
         return recommendations
     
-    def _get_all_nodes(self, nodes: List[FigmaNodeSpec]) -> List[FigmaNodeSpec]:
+    def _get_all_nodes(self, nodes: List[FigmaComponentSpec]) -> List[FigmaComponentSpec]:
         """Flatten node hierarchy for analysis"""
         
         all_nodes = []
@@ -379,10 +380,10 @@ Check for issues and provide recommendations.""")
         
         return (lighter + 0.05) / (darker + 0.05)
     
-    def _calculate_max_nesting_depth(self, nodes: List[FigmaNodeSpec]) -> int:
+    def _calculate_max_nesting_depth(self, nodes: List[FigmaComponentSpec]) -> int:
         """Calculate maximum nesting depth"""
         
-        def get_depth(node: FigmaNodeSpec, current_depth: int = 0) -> int:
+        def get_depth(node: FigmaComponentSpec, current_depth: int = 0) -> int:
             if not hasattr(node, 'children') or not node.children:
                 return current_depth
             

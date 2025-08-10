@@ -57,9 +57,8 @@ class RequirementsAgent:
         combined_input = f"Previous chat:\n{chat_context}\n\nLatest input:\n{user_input}"
         
         # Generate brief using GPT-5
-        response = await self.llm.ainvoke(
-            self.prompt.format(chat_input=combined_input)
-        )
+        formatted_prompt = self.prompt.format_messages(chat_input=combined_input)
+        response = await self.llm.ainvoke(formatted_prompt)
         
         # Parse response into structured brief
         brief_data = self._parse_brief_response(response.content, user_input)
@@ -88,7 +87,8 @@ class RequirementsAgent:
         ])
         
         try:
-            extraction_response = self.llm.invoke(extraction_prompt)
+            formatted_prompt = extraction_prompt.format_messages()
+            extraction_response = self.llm.invoke(formatted_prompt)
             import json
             return json.loads(extraction_response.content)
         except:

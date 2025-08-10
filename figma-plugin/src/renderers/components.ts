@@ -2,6 +2,7 @@ import type { SectionSpec } from '../types'
 import { createAutoLayoutFrame } from './layout'
 import { createTextNode } from './text'
 import { createImageRectFromUrl } from './image'
+import { PremiumComponentRenderer } from './premium-components'
 
 export async function renderSection(section: SectionSpec): Promise<FrameNode | GroupNode> {
   switch (section.type) {
@@ -27,72 +28,81 @@ export async function renderSection(section: SectionSpec): Promise<FrameNode | G
 }
 
 async function renderHeader(props: any): Promise<FrameNode> {
-  const frame = createAutoLayoutFrame({ name: 'Header', padding: 16 })
-  frame.layoutMode = 'HORIZONTAL'
-  frame.counterAxisSizingMode = 'AUTO'
-  frame.primaryAxisSizingMode = 'FIXED'
-  frame.resizeWithoutConstraints(1200, frame.height)
-
-  const left = createAutoLayoutFrame({ name: 'Brand', padding: 0, spacing: 8 })
-  const right = createAutoLayoutFrame({ name: 'Nav', padding: 0, spacing: 16 })
-  right.layoutMode = 'HORIZONTAL'
-
-  if (props && props.logoUrl) {
-    const logo = await createImageRectFromUrl(props.logoUrl, 'logo')
-    logo.resize(120, 40)
-    left.appendChild(logo)
-  } else {
-    const brand = await createTextNode('Brand', { family: 'Inter', style: 'Bold', size: 20 })
-    left.appendChild(brand)
-  }
-
-  const items: string[] = (props && props.nav) ? props.nav : ['Home', 'Services', 'Pricing', 'Contact']
-  for (const item of items) {
-    const link = await createTextNode(item, { family: 'Inter', style: 'Regular', size: 14 })
-    right.appendChild(link)
-  }
-
-  frame.appendChild(left)
-  frame.appendChild(right)
-  return frame
+  // Use premium header for enhanced visual appeal
+  return await PremiumComponentRenderer.createPremiumHeader()
 }
 
 async function renderHero(props: any): Promise<FrameNode> {
-  const frame = createAutoLayoutFrame({ name: 'Hero', padding: 24, spacing: 16 })
-  const title = await createTextNode((props && props.title) ? props.title : 'Hero Title', { family: 'Inter', style: 'Bold', size: 44, line: 52 })
-  const subtitle = await createTextNode((props && props.subtitle) ? props.subtitle : 'Subtitle text', { family: 'Inter', style: 'Regular', size: 18, line: 28 })
-  frame.appendChild(title)
-  frame.appendChild(subtitle)
-  if (props && props.imageUrl) {
-    const rect = await createImageRectFromUrl(props.imageUrl, 'hero')
-    rect.resize(1200, 420)
-    frame.appendChild(rect)
-  }
-  return frame
+  // Use premium hero with enhanced visual styling
+  return await PremiumComponentRenderer.createPremiumHero({
+    title: (props && props.title) ? props.title : 'Transform Your Health Journey',
+    subtitle: (props && props.subtitle) ? props.subtitle : 'Expert Care, Premium Results',
+    description: 'Experience the difference with our state-of-the-art treatments and personalized approach to wellness.',
+    primaryCTA: (props && props.cta) ? props.cta : 'Book Consultation',
+    secondaryCTA: 'Learn More',
+    backgroundType: 'gradient',
+    layout: 'split'
+  })
 }
 
 async function renderFeatures(props: any): Promise<FrameNode> {
-  const frame = createAutoLayoutFrame({ name: 'Features', spacing: 16 })
+  const frame = createAutoLayoutFrame({ name: 'Features', spacing: 24, padding: 80 })
+  frame.layoutMode = 'HORIZONTAL'
+  frame.primaryAxisSizingMode = 'AUTO'
+  frame.counterAxisSizingMode = 'FIXED'
+  frame.resizeWithoutConstraints(1440, frame.height)
+  
+  // Premium background - simplified to solid color
+  frame.fills = [{ type: 'SOLID', color: { r: 0.98, g: 0.99, b: 1 } }]
+  
   const items: Array<{ title: string; desc?: string }> = (props && props.items) ? props.items : []
   for (const it of items) {
-    const card = createAutoLayoutFrame({ name: 'Feature', padding: 16, spacing: 6 })
-    const t = await createTextNode(it.title || 'Feature', { family: 'Inter', style: 'Bold', size: 18 })
-    card.appendChild(t)
-    if (it.desc) {
-      const d = await createTextNode(it.desc, { family: 'Inter', style: 'Regular', size: 14, line: 22 })
-      card.appendChild(d)
-    }
+    const card = await PremiumComponentRenderer.createPremiumCard({
+      title: it.title || 'Premium Feature',
+      content: it.desc || 'Experience excellence with our advanced approach to healthcare.',
+      variant: 'gradient',
+      shadow: true,
+      padding: 32
+    })
+    card.resizeWithoutConstraints(360, card.height)
     frame.appendChild(card)
   }
   return frame
 }
 
 async function renderCTA(props: any): Promise<FrameNode> {
-  const frame = createAutoLayoutFrame({ name: 'CTA', spacing: 8, padding: 20 })
-  const title = await createTextNode((props && props.title) ? props.title : 'Call to Action', { family: 'Inter', style: 'Bold', size: 24 })
+  const frame = createAutoLayoutFrame({ name: 'CTA', spacing: 32, padding: 80 })
+  frame.counterAxisSizingMode = 'FIXED'
+  frame.resizeWithoutConstraints(1440, frame.height)
+  
+  // Premium gradient background - simplified to solid color
+  frame.fills = [{ type: 'SOLID', color: { r: 0.15, g: 0.31, b: 0.92 } }]
+  
+  const title = await createTextNode((props && props.title) ? props.title : 'Ready to Transform Your Health?', { 
+    family: 'Inter', 
+    style: 'Bold', 
+    size: 36 
+  })
+  title.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
   frame.appendChild(title)
-  const cta = await createTextNode((props && props.cta) ? props.cta : 'Get Started', { family: 'Inter', style: 'Bold', size: 16 })
-  frame.appendChild(cta)
+  
+  const subtitle = await createTextNode('Join thousands who have already experienced the difference', { 
+    family: 'Inter', 
+    style: 'Regular', 
+    size: 18 
+  })
+  subtitle.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 0.9 } }]
+  frame.appendChild(subtitle)
+  
+  const ctaBtn = await PremiumComponentRenderer.createPremiumButton({
+    text: (props && props.cta) ? props.cta : 'Schedule Your Consultation',
+    variant: 'secondary',
+    size: 'xl'
+  })
+  // Make CTA button white on the gradient background
+  ctaBtn.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]
+  frame.appendChild(ctaBtn)
+  
   return frame
 }
 

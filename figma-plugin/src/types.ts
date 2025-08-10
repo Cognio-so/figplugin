@@ -25,6 +25,7 @@ export interface GenerateFirstPagePayload {
   model?: string
   useAiImages?: boolean
   brief?: string
+  referenceUrls?: string[]
   refs?: string[]
   uploads?: Array<{ role: string; name: string; blobUrl: string }>
 }

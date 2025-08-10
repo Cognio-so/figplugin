@@ -8,7 +8,7 @@ import replicate
 import os
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from .composer_agent import ImageSlot
+from backend.agents.composer_agent import ImageSlot
 
 class GeneratedImage(BaseModel):
     role: str
@@ -85,13 +85,12 @@ class ImageAgent:
         """Enhance image prompt using GPT-5"""
         
         try:
-            response = await self.llm.ainvoke(
-                self.prompt_enhancement_template.format(
-                    base_prompt=slot.prompt,
-                    style_hints=slot.styleHints,
-                    business_context=business_context
-                )
+            formatted_prompt = self.prompt_enhancement_template.format_messages(
+                base_prompt=slot.prompt,
+                style_hints=slot.styleHints,
+                business_context=business_context
             )
+            response = await self.llm.ainvoke(formatted_prompt)
             return response.content.strip()
         except Exception as e:
             print(f"Failed to enhance prompt: {e}")
