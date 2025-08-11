@@ -3,6 +3,7 @@ AI-Driven Composer Agent - Generates dynamic Figma components based on design an
 """
 
 import json
+import re
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
@@ -137,7 +138,7 @@ Return a JSON structure with complete component specifications that will render 
             response = await self.llm.ainvoke(formatted_prompt)
             
             # Parse AI response into component specifications
-            components_data = self._parse_component_response(response.content, design_analysis)
+            components_data = await self._parse_component_response(response.content, design_analysis)
             
             return GeneratedPageComponents(**components_data)
             
@@ -199,44 +200,44 @@ TARGET AUDIENCE: {analysis.target_audience_analysis}
 BRAND PERSONALITY: {analysis.brand_personality}
 """
 
-    def _parse_component_response(self, llm_response: str, design_analysis: DesignAnalysis) -> Dict[str, Any]:
+    async def _parse_component_response(self, llm_response: str, design_analysis: DesignAnalysis) -> Dict[str, Any]:
         """Parse AI response into component specifications"""
         
         extraction_prompt = ChatPromptTemplate.from_messages([
             ("system", """Extract component specifications from the design response.
 
 Return ONLY a JSON object with this structure:
-{
+{{
     "pageName": "Page Name",
     "components": [
-        {
+        {{
             "name": "Component_Name",
             "type": "FRAME",
-            "properties": {
+            "properties": {{
                 "layoutMode": "VERTICAL",
                 "width": 1200,
                 "height": 600,
-                "fills": [{"type": "SOLID", "color": {"r": 1, "g": 1, "b": 1}}],
+                "fills": [{{"type": "SOLID", "color": {{"r": 1, "g": 1, "b": 1}}}}],
                 "paddingTop": 40,
                 "paddingRight": 40,
                 "paddingBottom": 40,
                 "paddingLeft": 40,
                 "itemSpacing": 24
-            },
+            }},
             "children": [...]
-        }
+        }}
     ],
     "imageSlots": [
-        {
+        {{
             "role": "hero",
             "prompt": "Professional image prompt",
             "aspectRatio": "16:9",
-            "styleHints": {"style": "professional", "mood": "trustworthy"}
-        }
+            "styleHints": {{"style": "professional", "mood": "trustworthy"}}
+        }}
     ],
     "totalNodes": 0,
     "designReasoning": "Explanation of design decisions"
-}
+}}
 
 Ensure all RGB values are between 0-1, all properties use exact Figma API names, and components create a cohesive, beautiful design."""),
             ("human", f"Component response to parse:\n{llm_response}")
@@ -244,10 +245,24 @@ Ensure all RGB values are between 0-1, all properties use exact Figma API names,
         
         try:
             formatted_prompt = extraction_prompt.format_messages()
-            extraction_response = self.llm.invoke(formatted_prompt)
+            extraction_response = await self.llm.ainvoke(formatted_prompt)
             # Extract JSON from response
             json_text = self._extract_json_from_text(extraction_response.content)
-            component_data = json.loads(json_text)
+            
+            # Log for debugging
+            print(f"Extracted component JSON length: {len(json_text)} characters")
+            
+            # Try to parse the JSON
+            try:
+                component_data = json.loads(json_text)
+            except json.JSONDecodeError as je:
+                print(f"JSON decode error in component response: {je}")
+                print(f"Failed JSON text (first 500 chars): {json_text[:500]}")
+                # Try to fix common JSON issues
+                json_text = json_text.replace("'", '"')  # Replace single quotes
+                json_text = re.sub(r',\s*}', '}', json_text)  # Remove trailing commas
+                json_text = re.sub(r',\s*]', ']', json_text)  # Remove trailing commas in arrays
+                component_data = json.loads(json_text)
             
             # Validate and count nodes
             component_data["totalNodes"] = self._count_total_nodes(component_data["components"])
@@ -255,15 +270,38 @@ Ensure all RGB values are between 0-1, all properties use exact Figma API names,
             return component_data
             
         except Exception as e:
-            print(f"Failed to parse component response: {e}")
+            print(f"Failed to parse component response: {str(e)}")
+            print(f"Raw LLM response (first 500 chars): {extraction_response.content[:500] if 'extraction_response' in locals() else 'No response'}")
             return self._generate_fallback_component_data(design_analysis)
 
     def _extract_json_from_text(self, text: str) -> str:
         """Extract JSON from AI response text"""
         import re
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
-        if json_match:
-            return json_match.group(0)
+        
+        # Try multiple methods to extract JSON
+        # Method 1: Look for JSON between ```json and ``` markers
+        json_code_match = re.search(r'```json\s*([\s\S]*?)\s*```', text)
+        if json_code_match:
+            return json_code_match.group(1).strip()
+        
+        # Method 2: Look for JSON between ``` markers
+        code_match = re.search(r'```\s*([\s\S]*?)\s*```', text)
+        if code_match:
+            potential_json = code_match.group(1).strip()
+            if potential_json.startswith('{'):
+                return potential_json
+        
+        # Method 3: Find the first { and last } for a complete JSON object
+        first_brace = text.find('{')
+        last_brace = text.rfind('}')
+        if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
+            return text[first_brace:last_brace + 1]
+        
+        # Method 4: If the entire text starts with {, assume it's JSON
+        trimmed = text.strip()
+        if trimmed.startswith('{') and trimmed.endswith('}'):
+            return trimmed
+        
         return text
 
     def _count_total_nodes(self, components: List[Dict]) -> int:

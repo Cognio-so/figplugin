@@ -117,7 +117,7 @@ Special Requirements: {requirements}""")
         response = await self.llm.ainvoke(formatted_prompt)
         
         # Parse response into structured PageSpec
-        page_spec_data = self._parse_page_spec(response.content, brief, page_type)
+        page_spec_data = await self._parse_page_spec(response.content, brief, page_type)
         
         return PageSpec(**page_spec_data)
     
@@ -144,43 +144,43 @@ Button Style: {design_system.components.get('Button', {})}
 Spacing Scale: {design_system.spacingScale[:5]}
 """
     
-    def _parse_page_spec(self, llm_response: str, brief: Brief, page_type: str) -> Dict[str, Any]:
+    async def _parse_page_spec(self, llm_response: str, brief: Brief, page_type: str) -> Dict[str, Any]:
         """Parse LLM response into structured PageSpec"""
         
         extraction_prompt = ChatPromptTemplate.from_messages([
             ("system", """Extract a structured page specification from the layout plan.
             
             Return ONLY a JSON object with this exact structure:
-            {
+            {{
                 "pageName": "Page Name",
                 "sections": [
-                    {
+                    {{
                         "type": "Header",
-                        "props": {
+                        "props": {{
                             "logo": true,
                             "nav": ["Home", "Services", "About", "Contact"],
                             "phone": "+1 (555) 123-4567",
                             "cta": "Book Now"
-                        }
-                    },
-                    {
+                        }}
+                    }},
+                    {{
                         "type": "Hero", 
-                        "props": {
+                        "props": {{
                             "title": "Main Headline",
                             "subtitle": "Supporting text",
                             "cta": "Primary Button",
                             "ctaSecondary": "Secondary Button",
                             "imageSlot": "hero",
                             "variant": "split|centered|fullwidth"
-                        }
-                    }
+                        }}
+                    }}
                 ],
-                "assets": {
+                "assets": {{
                     "logo": "logo",
                     "hero": "hero",
                     "about": "team"
-                }
-            }
+                }}
+            }}
             
             Use healthcare-appropriate copy and CTAs."""),
             ("human", f"Layout plan to extract:\n{llm_response}\n\nBusiness type: {brief.business_type}")
@@ -188,11 +188,51 @@ Spacing Scale: {design_system.spacingScale[:5]}
         
         try:
             formatted_prompt = extraction_prompt.format_messages()
-            extraction_response = self.llm.invoke(formatted_prompt)
+            extraction_response = await self.llm.ainvoke(formatted_prompt)
             import json
-            return json.loads(extraction_response.content)
+            import re
+            
+            # Extract JSON from the response
+            content = extraction_response.content
+            
+            # Try multiple methods to extract JSON
+            # Method 1: Look for JSON between ```json and ``` markers
+            json_code_match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
+            if json_code_match:
+                json_text = json_code_match.group(1).strip()
+            else:
+                # Method 2: Look for JSON between ``` markers
+                code_match = re.search(r'```\s*([\s\S]*?)\s*```', content)
+                if code_match:
+                    json_text = code_match.group(1).strip()
+                else:
+                    # Method 3: Find the first { and last }
+                    first_brace = content.find('{')
+                    last_brace = content.rfind('}')
+                    if first_brace != -1 and last_brace != -1:
+                        json_text = content[first_brace:last_brace + 1]
+                    else:
+                        # Method 4: Assume entire content is JSON
+                        json_text = content.strip()
+            
+            # Log for debugging
+            print(f"Extracted page spec JSON length: {len(json_text)} characters")
+            
+            # Try to parse the JSON
+            try:
+                return json.loads(json_text)
+            except json.JSONDecodeError as je:
+                print(f"JSON decode error in page spec: {je}")
+                print(f"Failed JSON text (first 500 chars): {json_text[:500]}")
+                # Try to fix common JSON issues
+                json_text = json_text.replace("'", '"')  # Replace single quotes
+                json_text = re.sub(r',\s*}', '}', json_text)  # Remove trailing commas
+                json_text = re.sub(r',\s*]', ']', json_text)  # Remove trailing commas in arrays
+                return json.loads(json_text)
+                
         except Exception as e:
-            print(f"Failed to parse page spec: {e}")
+            print(f"Failed to parse page spec: {str(e)}")
+            print(f"Raw LLM response (first 500 chars): {extraction_response.content[:500] if 'extraction_response' in locals() else 'No response'}")
             return self._get_default_page_spec(brief, page_type)
     
     def _get_default_page_spec(self, brief: Brief, page_type: str) -> Dict[str, Any]:

@@ -1,0 +1,21 @@
+{
+  "designSystem": {
+    "colors": {
+      "primary": "#2563EB",
+      "secondary": "#059669", 
+      "text": "#1F2937",
+      "background": "#FFFFFF"
+    },
+    "typography": {
+      "h1": {"family": "Inter", "size": 36, "weight": "700"}
+    },
+    "spacingScale": [8, 16, 24, 32],
+    "radius": {"md": 8},
+    "grid": {"container": 1200},
+    "components": {
+      "Button": {"radius": 8}
+    }
+  },
+  "pageKind": "Home",
+  "brief": "luxury medical spa website"
+}

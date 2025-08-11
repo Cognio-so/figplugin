@@ -125,7 +125,7 @@ Provide specific hex codes, font names, pixel values, and detailed reasoning for
             response = await self.llm.ainvoke(formatted_prompt)
             
             # Parse response into structured data
-            design_data = self._parse_design_analysis(response.content, user_input)
+            design_data = await self._parse_design_analysis(response.content, user_input)
             
             return DesignAnalysis(**design_data)
             
@@ -133,14 +133,14 @@ Provide specific hex codes, font names, pixel values, and detailed reasoning for
             print(f"Design analysis failed: {e}")
             return self._get_fallback_design_analysis(user_input)
 
-    def _parse_design_analysis(self, llm_response: str, user_input: str) -> Dict[str, Any]:
+    async def _parse_design_analysis(self, llm_response: str, user_input: str) -> Dict[str, Any]:
         """Parse LLM response into structured design analysis"""
         
         extraction_prompt = ChatPromptTemplate.from_messages([
             ("system", """Extract a structured design analysis from the provided text.
 
 Return ONLY a JSON object with this exact structure:
-{
+{{
     "primary_color": "#hex",
     "secondary_color": "#hex", 
     "accent_color": "#hex",
@@ -172,7 +172,7 @@ Return ONLY a JSON object with this exact structure:
     "design_reasoning": "Explanation of design decisions",
     "target_audience_analysis": "Analysis of target audience",
     "brand_personality": "Brand personality description"
-}
+}}
 
 All colors must be valid hex codes. All fonts must be web-safe or Google Fonts. All sizes must be in pixels."""),
             ("human", f"Design analysis to extract:\n{llm_response}\n\nOriginal user input: {user_input}")
@@ -180,20 +180,60 @@ All colors must be valid hex codes. All fonts must be web-safe or Google Fonts. 
         
         try:
             formatted_prompt = extraction_prompt.format_messages()
-            extraction_response = self.llm.invoke(formatted_prompt)
+            extraction_response = await self.llm.ainvoke(formatted_prompt)
+            
             # Clean the response to extract JSON
             json_text = self._extract_json_from_text(extraction_response.content)
-            return json.loads(json_text)
+            
+            # Log the extracted JSON for debugging
+            print(f"Extracted JSON length: {len(json_text)} characters")
+            
+            # Try to parse the JSON
+            try:
+                return json.loads(json_text)
+            except json.JSONDecodeError as je:
+                print(f"JSON decode error: {je}")
+                print(f"Failed JSON text (first 500 chars): {json_text[:500]}")
+                # Try to fix common JSON issues
+                json_text = json_text.replace("'", '"')  # Replace single quotes with double
+                json_text = re.sub(r',\s*}', '}', json_text)  # Remove trailing commas
+                json_text = re.sub(r',\s*]', ']', json_text)  # Remove trailing commas in arrays
+                return json.loads(json_text)
+                
         except Exception as e:
-            print(f"Failed to parse design analysis: {e}")
+            print(f"Failed to parse design analysis: {str(e)}")
+            print(f"Raw LLM response (first 500 chars): {extraction_response.content[:500] if 'extraction_response' in locals() else 'No response'}")
             return self._get_fallback_design_data(user_input)
 
     def _extract_json_from_text(self, text: str) -> str:
         """Extract JSON object from text response"""
-        # Look for JSON object in the text
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
-        if json_match:
-            return json_match.group(0)
+        # Try multiple methods to extract JSON
+        
+        # Method 1: Look for JSON between ```json and ``` markers
+        json_code_match = re.search(r'```json\s*([\s\S]*?)\s*```', text)
+        if json_code_match:
+            return json_code_match.group(1).strip()
+        
+        # Method 2: Look for JSON between ``` markers
+        code_match = re.search(r'```\s*([\s\S]*?)\s*```', text)
+        if code_match:
+            potential_json = code_match.group(1).strip()
+            if potential_json.startswith('{'):
+                return potential_json
+        
+        # Method 3: Find the first { and last } for a complete JSON object
+        first_brace = text.find('{')
+        last_brace = text.rfind('}')
+        if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
+            potential_json = text[first_brace:last_brace + 1]
+            # Basic validation - check if it has quotes
+            if '"' in potential_json:
+                return potential_json
+        
+        # Method 4: If the entire text starts with {, assume it's JSON
+        trimmed = text.strip()
+        if trimmed.startswith('{') and trimmed.endswith('}'):
+            return trimmed
         
         # If no JSON found, return the original text
         return text

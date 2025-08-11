@@ -35,19 +35,19 @@ supabase_key = os.getenv("SUPABASE_ANON_KEY")
 supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
 
 # LLM clients using LangChain partner libraries
-def get_llm_client(model_name: str = "gpt-5", temperature: float = 0.7):
-    """Get LLM client using LangChain partner libraries - GPT-5 as default"""
+def get_llm_client(model_name: str = "gpt-4o-2024-08-06", temperature: float = 0.7):
+    """Get LLM client using LangChain partner libraries - GPT-4o as default"""
     if model_name.startswith("gpt-"):
-        return ChatOpenAI(model=model_name, temperature=temperature)
+        return ChatOpenAI(model=model_name, temperature=temperature, max_tokens=4000)
     elif model_name.startswith("claude-"):
-        return ChatAnthropic(model=model_name, temperature=temperature)
+        return ChatAnthropic(model=model_name, temperature=temperature, max_tokens=4000)
     elif model_name.startswith("gemini-"):
         return ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
     elif model_name.startswith("mixtral-") or model_name.startswith("llama-"):
         return ChatGroq(model=model_name, temperature=temperature)
     else:
-        # Default to OpenAI GPT-5
-        return ChatOpenAI(model="gpt-5", temperature=temperature)
+        # Default to OpenAI GPT-4o
+        return ChatOpenAI(model="gpt-4o-2024-08-06", temperature=temperature, max_tokens=4000)
 
 # Pydantic models
 class SessionStartRequest(BaseModel):
@@ -247,7 +247,7 @@ async def generate_complete_page(request: Dict[str, Any]):
         reference_urls = request.get("reference_urls", [])
         page_type = request.get("page_type", "Home")
         use_ai_images = request.get("use_ai_images", False)
-        model_name = request.get("model_name", "gpt-5")
+        model_name = request.get("model_name", "gpt-4o-2024-08-06")
         
         # Create and execute workflow
         workflow = create_workflow(model_name)

@@ -87,7 +87,7 @@ class PageGenerationWorkflow:
         reference_urls: List[str] = None,
         page_type: str = "Home",
         use_ai_images: bool = False,
-        model_name: str = "gpt-5"
+        model_name: str = "gpt-4o-2024-08-06"
     ) -> Dict[str, Any]:
         """Execute complete page generation workflow"""
         
@@ -327,8 +327,8 @@ class PageGenerationWorkflow:
         }
 
 # Workflow instance for easy reuse
-def create_workflow(model_name: str = "gpt-5") -> PageGenerationWorkflow:
+def create_workflow(model_name: str = "gpt-4o-2024-08-06") -> PageGenerationWorkflow:
     """Create and return a configured workflow instance"""
     
-    llm_client = ChatOpenAI(model=model_name, temperature=0.7)
+    llm_client = ChatOpenAI(model=model_name, temperature=0.7, max_tokens=4000)
     return PageGenerationWorkflow(llm_client)

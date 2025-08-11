@@ -107,52 +107,91 @@ class ReferenceAgent:
         response = await self.llm.ainvoke(formatted_prompt)
         
         # Parse into design system
-        design_system_data = self._parse_design_system(response.content)
+        design_system_data = await self._parse_design_system(response.content)
         
         return DesignSystem(**design_system_data)
     
-    def _parse_design_system(self, llm_response: str) -> Dict[str, Any]:
+    async def _parse_design_system(self, llm_response: str) -> Dict[str, Any]:
         """Parse LLM response into structured design system"""
         
         extraction_prompt = ChatPromptTemplate.from_messages([
             ("system", """Extract a structured design system from the analysis.
             Return ONLY a JSON object with this exact structure:
-            {
-                "colors": {
+            {{
+                "colors": {{
                     "primary": "#hexcode",
                     "secondary": "#hexcode", 
                     "text": "#hexcode",
                     "textMuted": "#hexcode",
                     "background": "#hexcode",
                     "accent": "#hexcode"
-                },
-                "typography": {
-                    "display": {"family": "Font Name", "size": 44, "weight": "700", "lineHeight": 1.2},
-                    "h1": {"family": "Font Name", "size": 36, "weight": "700"},
-                    "h2": {"family": "Font Name", "size": 28, "weight": "600"},
-                    "h3": {"family": "Font Name", "size": 24, "weight": "600"},
-                    "body": {"family": "Font Name", "size": 16, "lineHeight": 1.5, "weight": "400"},
-                    "small": {"size": 14, "lineHeight": 1.4}
-                },
+                }},
+                "typography": {{
+                    "display": {{"family": "Font Name", "size": 44, "weight": "700", "lineHeight": 1.2}},
+                    "h1": {{"family": "Font Name", "size": 36, "weight": "700"}},
+                    "h2": {{"family": "Font Name", "size": 28, "weight": "600"}},
+                    "h3": {{"family": "Font Name", "size": 24, "weight": "600"}},
+                    "body": {{"family": "Font Name", "size": 16, "lineHeight": 1.5, "weight": "400"}},
+                    "small": {{"size": 14, "lineHeight": 1.4}}
+                }},
                 "spacingScale": [8, 12, 16, 24, 32, 48, 64, 96],
-                "radius": {"sm": 4, "md": 8, "lg": 12, "xl": 16},
-                "grid": {"container": 1200, "columns": 12, "gutter": 24},
-                "components": {
-                    "Button": {"radius": 8, "padX": 24, "padY": 12, "weight": "600"},
-                    "Card": {"radius": 12, "shadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": 24}
-                },
+                "radius": {{"sm": 4, "md": 8, "lg": 12, "xl": 16}},
+                "grid": {{"container": 1200, "columns": 12, "gutter": 24}},
+                "components": {{
+                    "Button": {{"radius": 8, "padX": 24, "padY": 12, "weight": "600"}},
+                    "Card": {{"radius": 12, "shadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": 24}}
+                }},
                 "confidence": 0.8
-            }"""),
+            }}"""),
             ("human", f"Design analysis to extract:\n{llm_response}")
         ])
         
         try:
             formatted_prompt = extraction_prompt.format_messages()
-            extraction_response = self.llm.invoke(formatted_prompt)
+            extraction_response = await self.llm.ainvoke(formatted_prompt)
             import json
-            return json.loads(extraction_response.content)
+            import re
+            
+            # Extract JSON from the response
+            content = extraction_response.content
+            
+            # Try multiple methods to extract JSON
+            # Method 1: Look for JSON between ```json and ``` markers
+            json_code_match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
+            if json_code_match:
+                json_text = json_code_match.group(1).strip()
+            else:
+                # Method 2: Look for JSON between ``` markers
+                code_match = re.search(r'```\s*([\s\S]*?)\s*```', content)
+                if code_match:
+                    json_text = code_match.group(1).strip()
+                else:
+                    # Method 3: Find the first { and last }
+                    first_brace = content.find('{')
+                    last_brace = content.rfind('}')
+                    if first_brace != -1 and last_brace != -1:
+                        json_text = content[first_brace:last_brace + 1]
+                    else:
+                        json_text = content.strip()
+            
+            # Log for debugging
+            print(f"Extracted design system JSON length: {len(json_text)} characters")
+            
+            # Try to parse the JSON
+            try:
+                return json.loads(json_text)
+            except json.JSONDecodeError as je:
+                print(f"JSON decode error in design system: {je}")
+                print(f"Failed JSON text (first 500 chars): {json_text[:500]}")
+                # Try to fix common JSON issues
+                json_text = json_text.replace("'", '"')  # Replace single quotes
+                json_text = re.sub(r',\s*}', '}', json_text)  # Remove trailing commas
+                json_text = re.sub(r',\s*]', ']', json_text)  # Remove trailing commas in arrays
+                return json.loads(json_text)
+                
         except Exception as e:
-            print(f"Failed to parse design system: {e}")
+            print(f"Failed to parse design system: {str(e)}")
+            print(f"Raw LLM response (first 500 chars): {extraction_response.content[:500] if 'extraction_response' in locals() else 'No response'}")
             return self._get_default_healthcare_design_system().__dict__
     
     def _get_default_healthcare_design_system(self) -> DesignSystem:
